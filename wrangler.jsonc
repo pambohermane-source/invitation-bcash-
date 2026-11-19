@@ -7,5 +7,7 @@
     { "binding": "RSVP", "id": "57ab1734994f4272bc8d7bf3a396353d" }
   ],
   "keep_vars": true,
+  // Empreinte SHA-256 du code admin (le code lui-même n'est pas stocké ici)
+  "vars": { "ADMIN_HASH": "5ae71e62e3d5e5ded1ad422176c16bf90b7541ed289c072e1bfbbc3e6056b8b6" },
   "observability": { "enabled": true }
 }

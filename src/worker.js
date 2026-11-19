@@ -30,9 +30,14 @@ async function allRsvps(env) {
   return out.sort((a, b) => (a.creeLe || '').localeCompare(b.creeLe || ''));
 }
 
-function authorized(request, env) {
+async function authorized(request, env) {
   const key = new URL(request.url).searchParams.get('key') || '';
-  return !!env.ADMIN_KEY && key === env.ADMIN_KEY;
+  if (!key) return false;
+  if (env.ADMIN_KEY && key === env.ADMIN_KEY) return true;
+  if (!env.ADMIN_HASH) return false;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
+  const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  return hex === env.ADMIN_HASH;
 }
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -49,7 +54,7 @@ async function rsvpGet(env) {
   return json({
     service: 'OK — la fonction est bien déployée',
     stockage: env.RSVP ? 'OK — KV « RSVP » relié' : 'MANQUANT — reliez le KV avec le nom de variable RSVP, puis redéployez',
-    admin: env.ADMIN_KEY ? 'OK — ADMIN_KEY défini' : 'MANQUANT — ajoutez la variable ADMIN_KEY, puis redéployez'
+    admin: (env.ADMIN_KEY || env.ADMIN_HASH) ? 'OK — code admin défini' : 'MANQUANT'
   });
 }
 
@@ -90,7 +95,7 @@ const COLS = [
 ];
 
 async function exportCsv(request, env) {
-  if (!authorized(request, env)) return new Response('Accès refusé', { status: 401 });
+  if (!(await authorized(request, env))) return new Response('Accès refusé', { status: 401 });
   const rows = await allRsvps(env);
   const cell = v => {
     let s = String(v ?? '');
@@ -111,7 +116,7 @@ async function exportCsv(request, env) {
 // GET /admin?key=VOTRE_CLE — tableau de bord des confirmations.
 
 async function adminPage(request, env) {
-  if (!authorized(request, env)) {
+  if (!(await authorized(request, env))) {
     return new Response('<!doctype html><meta charset=utf-8><body style="background:#070A07;color:#A6AA9E;font-family:system-ui;display:grid;place-items:center;height:100vh">Accès réservé.</body>',
       { status: 401, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
